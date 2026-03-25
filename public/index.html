@@ -1,1 +1,1143 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>QUOTA · Luminèa</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Mono:wght@400;700&display=swap');
 
+  :root {
+    --bg: #08090b;
+    --surface: #111318;
+    --surface2: #191d24;
+    --border: #2a2f3a;
+    --text: #c8cdd8;
+    --text-dim: #5a6070;
+    --text-bright: #e8ecf4;
+    --accent: #c4933a;
+    --accent-dim: #7a5a20;
+    --veg: #4a8c4a;
+    --org: #3a6ea0;
+    --min: #8a6030;
+    --acq: #2a7a8a;
+    --danger: #8a3030;
+    --success: #3a6a3a;
+    --rep: #c4933a;
+    --font-body: 'Crimson Pro', Georgia, serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 16px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---- LAYOUT ---- */
+  #app { min-height: 100vh; display: flex; flex-direction: column; }
+
+  .screen { display: none; flex-direction: column; min-height: 100vh; }
+  .screen.active { display: flex; }
+
+  /* ---- HEADER ---- */
+  .game-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .game-header .logo {
+    font-family: var(--font-mono); font-size: 18px; letter-spacing: 0.15em;
+    color: var(--accent); font-weight: 700;
+  }
+  .game-header .subtitle { font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; }
+  .turn-badge {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    background: var(--surface2); padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  /* ---- WELCOME SCREEN ---- */
+  #screen-welcome {
+    align-items: center; justify-content: center;
+    padding: 40px 20px; gap: 40px;
+  }
+  .welcome-logo {
+    text-align: center;
+  }
+  .welcome-logo h1 {
+    font-family: var(--font-mono); font-size: 52px; letter-spacing: 0.2em;
+    color: var(--accent); font-weight: 700;
+    text-shadow: 0 0 40px rgba(196,147,58,0.3);
+  }
+  .welcome-logo p {
+    font-size: 14px; color: var(--text-dim); letter-spacing: 0.15em;
+    text-transform: uppercase; margin-top: 6px;
+  }
+  .welcome-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 28px; width: 100%; max-width: 380px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .welcome-box h2 {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.1em;
+    color: var(--text-dim); text-transform: uppercase;
+  }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+
+  /* ---- INPUTS ---- */
+  input[type=text] {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-bright); font-family: var(--font-body); font-size: 16px;
+    padding: 10px 14px; border-radius: 4px; width: 100%;
+    outline: none; transition: border-color 0.2s;
+  }
+  input[type=text]::placeholder { color: var(--text-dim); }
+  input[type=text]:focus { border-color: var(--accent-dim); }
+  input[type=text].code-input {
+    font-family: var(--font-mono); font-size: 20px; letter-spacing: 0.2em;
+    text-transform: uppercase; text-align: center;
+  }
+
+  /* ---- BUTTONS ---- */
+  .btn {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em;
+    text-transform: uppercase; cursor: pointer; border: none;
+    padding: 12px 20px; border-radius: 4px; width: 100%;
+    transition: all 0.15s; font-weight: 700;
+  }
+  .btn-primary {
+    background: var(--accent); color: #08090b;
+  }
+  .btn-primary:hover { background: #d4a34a; }
+  .btn-primary:disabled { background: var(--accent-dim); color: var(--text-dim); cursor: not-allowed; }
+  .btn-secondary {
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent-dim); color: var(--text-bright); }
+  .btn-danger {
+    background: var(--danger); color: var(--text-bright);
+  }
+  .btn-ghost {
+    background: transparent; color: var(--text-dim); border: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+  .btn-fist {
+    background: var(--surface2); color: var(--accent); border: 2px solid var(--accent-dim);
+    font-size: 14px; padding: 14px; transition: all 0.2s;
+  }
+  .btn-fist:hover:not(:disabled) { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn-fist:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-fist.confirmed { background: var(--accent-dim); color: var(--text-dim); border-color: var(--accent-dim); }
+
+  /* ---- LOBBY ---- */
+  #screen-lobby {
+    align-items: center; justify-content: center;
+    padding: 40px 20px; gap: 24px;
+  }
+  .lobby-code-box {
+    background: var(--surface); border: 1px solid var(--accent-dim);
+    border-radius: 8px; padding: 24px; text-align: center; width: 100%; max-width: 380px;
+  }
+  .lobby-code-box .label {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .lobby-code {
+    font-family: var(--font-mono); font-size: 42px; letter-spacing: 0.3em;
+    color: var(--accent); font-weight: 700;
+  }
+  .lobby-url { font-size: 12px; color: var(--text-dim); margin-top: 8px; word-break: break-all; }
+  .player-list { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 8px; }
+  .player-list h3 {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;
+  }
+  .player-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 10px 14px;
+  }
+  .player-row .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .player-row .pname { flex: 1; font-size: 16px; }
+  .player-row .you-badge {
+    font-family: var(--font-mono); font-size: 9px; color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+  .player-row .host-badge {
+    font-family: var(--font-mono); font-size: 9px; color: var(--accent-dim);
+    letter-spacing: 0.08em;
+  }
+  .waiting-msg { font-size: 14px; color: var(--text-dim); font-style: italic; text-align: center; }
+
+  /* ---- CHARACTER SELECTION ---- */
+  #screen-character { padding: 16px; gap: 12px; overflow-y: auto; }
+  .char-grid { display: flex; flex-direction: column; gap: 12px; }
+  .char-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 16px; cursor: pointer; transition: all 0.15s;
+    position: relative;
+  }
+  .char-card:hover { border-color: var(--accent-dim); background: var(--surface2); }
+  .char-card.selected { border-color: var(--accent); background: var(--surface2); }
+  .char-card .char-name {
+    font-family: var(--font-mono); font-size: 14px; font-weight: 700;
+    color: var(--text-bright); margin-bottom: 2px;
+  }
+  .char-card .char-cat {
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .char-card .char-flavor { font-style: italic; font-size: 14px; color: var(--text-dim); margin-bottom: 8px; }
+  .char-card .char-effect { font-size: 14px; color: var(--text); line-height: 1.5; }
+  .char-card.chosen { border-color: var(--accent-dim); opacity: 0.5; cursor: default; }
+  .phase-title {
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .phase-desc { font-size: 15px; color: var(--text-dim); line-height: 1.5; }
+
+  /* ---- PLAYERS BAR ---- */
+  .players-bar {
+    display: flex; gap: 8px; padding: 10px 16px;
+    overflow-x: auto; flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: none;
+  }
+  .players-bar::-webkit-scrollbar { display: none; }
+  .player-chip {
+    display: flex; flex-direction: column; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; min-width: 80px;
+    gap: 2px; flex-shrink: 0; transition: border-color 0.15s;
+    position: relative;
+  }
+  .player-chip.me { border-color: var(--accent-dim); }
+  .player-chip.fist { border-color: var(--success); }
+  .player-chip .pchip-name {
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-bright);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70px;
+  }
+  .player-chip .pchip-rep {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--rep);
+  }
+  .player-chip .pchip-hand { font-size: 11px; color: var(--text-dim); }
+  .player-chip .pchip-contrib {
+    font-family: var(--font-mono); font-size: 10px; color: var(--accent-dim);
+  }
+  .player-chip .fist-icon { font-size: 14px; position: absolute; top: 4px; right: 6px; }
+  .player-chip .char-badge {
+    font-size: 10px; color: var(--text-dim); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 70px;
+  }
+
+  /* ---- MAIN AREA ---- */
+  .main-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* ---- CRISIS CARD ---- */
+  .crisis-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .crisis-card .crisis-fascia {
+    display: inline-block;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 3px; margin-bottom: 8px;
+  }
+  .fascia-I { background: rgba(196,147,58,0.15); color: var(--accent); }
+  .fascia-II { background: rgba(138,96,48,0.15); color: #c47a3a; }
+  .fascia-III { background: rgba(138,48,48,0.15); color: #c44a4a; }
+  .crisis-card h2 { font-size: 20px; color: var(--text-bright); margin-bottom: 12px; }
+  .crisis-threshold {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 10px 14px; margin-bottom: 10px;
+  }
+  .crisis-threshold .label {
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
+  }
+  .crisis-threshold .value { font-size: 17px; color: var(--accent); font-weight: 600; }
+  .crisis-penalty { font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+  .crisis-penalty span { color: var(--danger); }
+  .crisis-success-effect { font-size: 14px; color: #3a8a3a; line-height: 1.5; margin-top: 6px; }
+
+  /* ---- TABLE CARDS ---- */
+  .table-cards-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .res-card {
+    border-radius: 6px; padding: 12px 8px;
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer; transition: all 0.15s; border: 2px solid transparent;
+    gap: 4px; position: relative;
+  }
+  .res-card.chosen { border-color: var(--accent); box-shadow: 0 0 12px rgba(196,147,58,0.4); }
+  .res-card.taken { opacity: 0.2; cursor: default; }
+  .res-card.mine-selected { border-color: var(--accent); }
+  .res-card .card-num {
+    font-family: var(--font-mono); font-size: 10px; color: rgba(255,255,255,0.4);
+    position: absolute; top: 4px; left: 6px;
+  }
+  .res-card .card-icon { font-size: 20px; }
+  .res-card .card-type { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.05em; }
+
+  .res-Vegetali  { background: rgba(74,140,74,0.2); }
+  .res-Organici  { background: rgba(58,110,160,0.2); }
+  .res-Minerali  { background: rgba(138,96,48,0.2); }
+  .res-Acquafonte{ background: rgba(42,122,138,0.2); }
+  .res-Vegetali  .card-type { color: #6ab86a; }
+  .res-Organici  .card-type { color: #5a9ece; }
+  .res-Minerali  .card-type { color: #c4903a; }
+  .res-Acquafonte .card-type{ color: #3abece; }
+
+  /* ---- MY HAND ---- */
+  .hand-section { }
+  .hand-section h3 {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hand-section h3 span { color: var(--text-bright); font-size: 14px; }
+  .hand-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .hand-card {
+    border-radius: 6px; padding: 12px 8px;
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer; transition: all 0.15s; border: 2px solid transparent; gap: 4px;
+  }
+  .hand-card:hover { filter: brightness(1.2); }
+  .hand-card.contributing {
+    border-color: var(--accent); box-shadow: 0 0 10px rgba(196,147,58,0.3);
+    opacity: 0.7;
+  }
+  .hand-card.locked { cursor: default; opacity: 0.8; }
+  .hand-card .card-icon { font-size: 20px; }
+  .hand-card .card-type { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.05em; }
+
+  /* ---- CONTRIBUTION AREA ---- */
+  .contrib-area {
+    background: var(--surface); border: 1px dashed var(--border);
+    border-radius: 6px; padding: 14px;
+  }
+  .contrib-area.has-cards { border-color: var(--accent-dim); }
+  .contrib-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+  }
+  .contrib-header h3 {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .contrib-count {
+    font-family: var(--font-mono); font-size: 13px; color: var(--accent); font-weight: 700;
+  }
+  .contrib-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; min-height: 60px; }
+  .contrib-hint { font-size: 13px; color: var(--text-dim); font-style: italic; text-align: center; padding: 16px 0; }
+
+  /* ---- RESOCONTO ---- */
+  .timer-display {
+    text-align: center; padding: 20px 0;
+  }
+  .timer-display .timer-num {
+    font-family: var(--font-mono); font-size: 64px; font-weight: 700;
+    color: var(--accent); line-height: 1;
+  }
+  .timer-display .timer-num.ending { color: #c44a4a; animation: pulse 0.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .timer-display .timer-label {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.15em; margin-top: 6px;
+  }
+
+  .result-banner {
+    text-align: center; padding: 16px;
+    border-radius: 6px; margin-bottom: 8px;
+  }
+  .result-banner.success { background: rgba(58,106,58,0.3); border: 1px solid #3a6a3a; }
+  .result-banner.failure { background: rgba(138,48,48,0.2); border: 1px solid var(--danger); }
+  .result-banner h2 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .result-banner.success h2 { color: #6acf6a; }
+  .result-banner.failure h2 { color: #cf6a6a; }
+  .result-banner p { font-size: 14px; color: var(--text-dim); }
+
+  .contrib-reveal { display: flex; flex-direction: column; gap: 8px; }
+  .contrib-reveal-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .contrib-reveal-row .rname { font-size: 15px; flex: 1; }
+  .contrib-reveal-row .rcards { display: flex; gap: 4px; flex-wrap: wrap; }
+  .mini-card {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 4px; font-size: 14px;
+  }
+  .mini-Vegetali  { background: rgba(74,140,74,0.3); }
+  .mini-Organici  { background: rgba(58,110,160,0.3); }
+  .mini-Minerali  { background: rgba(138,96,48,0.3); }
+  .mini-Acquafonte{ background: rgba(42,122,138,0.3); }
+
+  /* ---- SCORING ---- */
+  .score-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; overflow: hidden;
+  }
+  .score-card .score-header {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .score-card .rank {
+    font-family: var(--font-mono); font-size: 22px; font-weight: 700;
+    color: var(--text-dim); min-width: 30px;
+  }
+  .score-card:first-child .rank { color: var(--accent); }
+  .score-card .sname { font-size: 18px; flex: 1; }
+  .score-card .stotal {
+    font-family: var(--font-mono); font-size: 22px; font-weight: 700;
+    color: var(--accent);
+  }
+  .score-card .score-breakdown {
+    padding: 10px 16px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .score-row {
+    display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim);
+  }
+  .score-row .sval { font-family: var(--font-mono); color: var(--text); }
+  .winner-banner {
+    text-align: center; padding: 20px;
+    background: rgba(196,147,58,0.1); border: 1px solid var(--accent-dim);
+    border-radius: 8px; margin-bottom: 12px;
+  }
+  .winner-banner h2 {
+    font-size: 24px; color: var(--accent); margin-bottom: 4px;
+  }
+  .winner-banner p { font-size: 14px; color: var(--text-dim); font-style: italic; }
+
+  /* ---- LOG ---- */
+  .log-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px;
+  }
+  .log-section h3 {
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;
+  }
+  .log-entries { display: flex; flex-direction: column; gap: 4px; }
+  .log-entry { font-size: 13px; color: var(--text-dim); line-height: 1.4; }
+  .log-entry.new { color: var(--text); }
+
+  /* ---- OBJECTIVE CARD ---- */
+  .objective-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 14px;
+  }
+  .objective-card .obj-label {
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;
+  }
+  .objective-card .obj-name { font-size: 17px; font-weight: 600; color: var(--text-bright); margin-bottom: 4px; }
+  .objective-card .obj-desc { font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+
+  /* ---- STATUS MESSAGES ---- */
+  .status-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 14px; text-align: center;
+  }
+  .status-box .status-icon { font-size: 28px; margin-bottom: 8px; }
+  .status-box .status-text { font-size: 15px; color: var(--text-dim); }
+  .status-box.highlight { border-color: var(--accent-dim); }
+  .status-box.highlight .status-text { color: var(--text); }
+
+  /* ---- CRISIS HISTORY ---- */
+  .crisis-history { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ch-badge {
+    font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; border-radius: 3px;
+  }
+  .ch-badge.ok { background: rgba(58,106,58,0.3); color: #6acf6a; }
+  .ch-badge.fail { background: rgba(138,48,48,0.3); color: #cf6a6a; }
+
+  /* ---- FREE CHOICE HIGHLIGHT ---- */
+  .free-choice-active {
+    background: rgba(196,147,58,0.1); border: 1px solid var(--accent-dim);
+    border-radius: 6px; padding: 10px 14px;
+    font-size: 15px; color: var(--accent); text-align: center;
+  }
+
+  /* ---- MISC ---- */
+  .error-msg {
+    background: rgba(138,48,48,0.2); border: 1px solid var(--danger);
+    border-radius: 4px; padding: 10px 14px; font-size: 14px; color: #cf8080;
+    margin-top: 4px; display: none;
+  }
+  .section-title {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+
+  .res-icon { display: inline; }
+
+  /* ---- WAITING PLAYERS ---- */
+  .waiting-players {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+  }
+  .waiting-chip {
+    font-family: var(--font-mono); font-size: 10px;
+    padding: 4px 10px; border-radius: 3px;
+    background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border);
+  }
+  .waiting-chip.done { background: rgba(58,106,58,0.2); color: #6acf6a; border-color: #3a6a3a; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- WELCOME -->
+  <div id="screen-welcome" class="screen active">
+    <div class="welcome-logo">
+      <h1>QUOTA</h1>
+      <p>Luminèa · Un gioco Chroma-K · Exclave</p>
+    </div>
+    <div class="welcome-box">
+      <h2>Entra a Luminèa</h2>
+      <input type="text" id="input-name" placeholder="Il tuo nome" maxlength="20" />
+
+      <button class="btn btn-primary" onclick="createRoom()">Crea partita</button>
+
+      <hr class="divider">
+
+      <input type="text" id="input-code" class="code-input" placeholder="CODICE" maxlength="4" />
+      <button class="btn btn-secondary" onclick="joinRoom()">Unisciti</button>
+      <div id="welcome-error" class="error-msg"></div>
+    </div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="screen-lobby" class="screen">
+    <div class="game-header">
+      <div>
+        <div class="logo">QUOTA</div>
+        <div class="subtitle">In attesa dei giocatori</div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:20px;">
+      <div class="lobby-code-box">
+        <div class="label">Codice stanza — condividi con gli amici</div>
+        <div class="lobby-code" id="lobby-code-display">----</div>
+        <div class="lobby-url" id="lobby-url"></div>
+      </div>
+      <div class="player-list" id="lobby-player-list">
+        <h3>Giocatori (min. 3, max 6)</h3>
+      </div>
+      <div style="width:100%;max-width:380px;">
+        <button class="btn btn-primary" id="btn-start" onclick="startGame()" disabled>Avvia partita</button>
+        <div id="lobby-error" class="error-msg" style="margin-top:8px;"></div>
+        <div class="waiting-msg" id="lobby-waiting" style="margin-top:10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARACTER SELECTION -->
+  <div id="screen-character" class="screen">
+    <div class="game-header">
+      <div><div class="logo">QUOTA</div><div class="subtitle">Scelta Personaggio</div></div>
+    </div>
+    <div class="main-area">
+      <div class="phase-title">Scegli il tuo personaggio</div>
+      <div class="phase-desc">Il tuo ruolo è pubblico — tutti sapranno chi sei. Solo tu sai perché lo fai.</div>
+      <div class="char-grid" id="char-options"></div>
+      <div class="log-section" id="char-log-section" style="display:none;">
+        <h3>Registro</h3>
+        <div class="log-entries" id="char-log"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN (crisis, collection, allocation, resoconto) -->
+  <div id="screen-game" class="screen">
+    <div class="game-header">
+      <div><div class="logo">QUOTA</div><div class="subtitle" id="game-subtitle"></div></div>
+      <div class="turn-badge" id="game-turn-badge">T1/5</div>
+    </div>
+    <div class="players-bar" id="players-bar"></div>
+    <div class="main-area" id="game-main"></div>
+  </div>
+
+  <!-- SCORING -->
+  <div id="screen-scoring" class="screen">
+    <div class="game-header">
+      <div><div class="logo">QUOTA</div><div class="subtitle">Fine Partita</div></div>
+    </div>
+    <div class="main-area" id="scoring-main"></div>
+  </div>
+
+</div>
+
+<script>
+const socket = io();
+let state = null;
+
+// Resource icons/colors
+const RES = {
+  Vegetali:   { icon:'🌿', cls:'res-Vegetali',  mini:'mini-Vegetali'  },
+  Organici:   { icon:'🔵', cls:'res-Organici',   mini:'mini-Organici'  },
+  Minerali:   { icon:'⚙️',  cls:'res-Minerali',   mini:'mini-Minerali'  },
+  Acquafonte: { icon:'💧', cls:'res-Acquafonte', mini:'mini-Acquafonte' },
+};
+
+// ---- SOCKET EVENTS ----
+
+socket.on('state', (s) => {
+  state = s;
+  render();
+});
+
+socket.on('error-msg', (msg) => {
+  showError('welcome-error', msg);
+  showError('lobby-error', msg);
+});
+
+socket.on('room-created', ({code}) => {
+  document.getElementById('lobby-code-display').textContent = code;
+  document.getElementById('lobby-url').textContent = window.location.href;
+});
+
+// ---- ACTIONS ----
+
+function createRoom() {
+  const name = getNameOrError(); if(!name) return;
+  socket.emit('create-room', {name});
+}
+
+function joinRoom() {
+  const name = getNameOrError(); if(!name) return;
+  const code = document.getElementById('input-code').value.trim().toUpperCase();
+  if (!code || code.length !== 4) { showError('welcome-error','Inserisci un codice di 4 lettere.'); return; }
+  socket.emit('join-room', {code, name});
+}
+
+function getNameOrError() {
+  const name = document.getElementById('input-name').value.trim();
+  if (!name) { showError('welcome-error','Inserisci il tuo nome.'); return null; }
+  return name;
+}
+
+function startGame() { socket.emit('start-game'); }
+
+function chooseCharacter(id) { socket.emit('choose-character', {characterId: id}); }
+
+function advanceToCollection() { socket.emit('advance-to-collection'); }
+
+function makeSecretChoice(idx) { socket.emit('secret-choice', {cardIndex: idx}); }
+
+function makeFreeChoice(idx) { socket.emit('free-choice', {cardIndex: idx}); }
+
+function skipFreeChoice() { socket.emit('skip-free-choice'); }
+
+function toggleContribution(cardId) {
+  if (!state) return;
+  let ids = [...state.myContributionIds];
+  if (ids.includes(cardId)) ids = ids.filter(id => id !== cardId);
+  else ids.push(cardId);
+  state.myContributionIds = ids;
+  socket.emit('update-contribution', {cardIds: ids});
+  renderAllocation();
+}
+
+function fistDown() { socket.emit('fist-down'); }
+
+function endResoconto() { socket.emit('end-resoconto'); }
+
+// ---- UTILITIES ----
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.style.display = 'block'; setTimeout(()=>el.style.display='none', 4000); }
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function miniCard(type) {
+  const r = RES[type]||{icon:'?',mini:''};
+  return `<span class="mini-card ${r.mini}">${r.icon}</span>`;
+}
+
+// ---- MAIN RENDER ----
+
+function render() {
+  if (!state || state.phase === 'disconnected') return;
+
+  const phase = state.phase;
+
+  if (phase === 'lobby') {
+    showScreen('screen-lobby');
+    renderLobby();
+  } else if (phase === 'character-selection') {
+    showScreen('screen-character');
+    renderCharacterSelection();
+  } else if (['crisis','collection-secret','collection-free','allocation','resoconto'].includes(phase)) {
+    showScreen('screen-game');
+    renderGameScreen();
+  } else if (phase === 'scoring') {
+    showScreen('screen-scoring');
+    renderScoring();
+  }
+}
+
+// ---- LOBBY ----
+
+function renderLobby() {
+  const list = document.getElementById('lobby-player-list');
+  const players = state.players || [];
+  list.innerHTML = '<h3>Giocatori (' + players.length + '/6)</h3>';
+  players.forEach((p, i) => {
+    list.innerHTML += `
+      <div class="player-row">
+        <div class="dot"></div>
+        <div class="pname">${esc(p.name)}</div>
+        ${p.isMe ? '<span class="you-badge">TU</span>' : ''}
+        ${i===0 ? '<span class="host-badge">HOST</span>' : ''}
+      </div>`;
+  });
+
+  const isHost = state.isHost;
+  const canStart = players.length >= 3;
+  const btn = document.getElementById('btn-start');
+  btn.disabled = !isHost || !canStart;
+  btn.style.display = isHost ? 'block' : 'none';
+
+  const waiting = document.getElementById('lobby-waiting');
+  if (!isHost) waiting.textContent = 'In attesa che il host avvii la partita…';
+  else if (!canStart) waiting.textContent = 'Servono almeno 3 giocatori per iniziare.';
+  else waiting.textContent = '';
+
+  if (state.roomCode) document.getElementById('lobby-code-display').textContent = state.roomCode;
+}
+
+// ---- CHARACTER SELECTION ----
+
+function renderCharacterSelection() {
+  const me = state.players.find(p=>p.isMe);
+  const container = document.getElementById('char-options');
+  const logSec = document.getElementById('char-log-section');
+  const log = document.getElementById('char-log');
+
+  if (me?.characterOptions && !me.character) {
+    container.innerHTML = me.characterOptions.map(c => `
+      <div class="char-card" onclick="chooseCharacter('${c.id}')">
+        <div class="char-name">${esc(c.name)}</div>
+        <div class="char-cat">${esc(c.category)}</div>
+        <div class="char-flavor">"${esc(c.flavor)}"</div>
+        <div class="char-effect">${esc(c.effect)}</div>
+      </div>`).join('');
+  } else if (me?.character) {
+    container.innerHTML = `
+      <div class="char-card chosen">
+        <div class="char-name">${esc(me.character.name)}</div>
+        <div class="char-cat">${esc(me.character.category)}</div>
+        <div class="char-flavor">"${esc(me.character.flavor)}"</div>
+        <div class="char-effect">${esc(me.character.effect)}</div>
+      </div>
+      <div class="status-box"><div class="status-icon">⏳</div><div class="status-text">In attesa degli altri giocatori…</div></div>
+      <div class="waiting-players">
+        ${state.players.map(p=>`<span class="waiting-chip ${p.character?'done':''}">
+          ${esc(p.name)} ${p.character?'✓':''}
+        </span>`).join('')}
+      </div>`;
+  }
+
+  if (state.log?.length) {
+    logSec.style.display='block';
+    log.innerHTML = state.log.map(l=>`<div class="log-entry">${esc(l)}</div>`).join('');
+  }
+}
+
+// ---- GAME HEADER ----
+
+function renderPlayersBar() {
+  const bar = document.getElementById('players-bar');
+  bar.innerHTML = state.players.map(p => `
+    <div class="player-chip ${p.isMe?'me':''} ${p.fistDown?'fist':''}">
+      ${p.fistDown ? '<div class="fist-icon">✊</div>' : ''}
+      <div class="pchip-name">${esc(p.name)}</div>
+      <div class="pchip-rep">${p.reputation} ★</div>
+      <div class="pchip-hand">${p.handCount} carte</div>
+      ${p.character ? `<div class="char-badge">${esc(p.character.name)}</div>` : ''}
+      ${state.phase==='allocation' && p.contributionCount>0 ? `<div class="pchip-contrib">${p.contributionCount} contrib.</div>` : ''}
+    </div>`).join('');
+}
+
+// ---- GAME SCREEN ROUTER ----
+
+function renderGameScreen() {
+  renderPlayersBar();
+  const subtitle = document.getElementById('game-subtitle');
+  const badge = document.getElementById('game-turn-badge');
+  badge.textContent = `T${state.turnIndex+1}/5`;
+
+  const phaseNames = {
+    'crisis': 'Crisi',
+    'collection-secret': 'Raccolta — Fase A',
+    'collection-free': 'Raccolta — Fase B',
+    'allocation': 'Allocazione',
+    'resoconto': 'Resoconto',
+  };
+  subtitle.textContent = phaseNames[state.phase] || '';
+
+  switch (state.phase) {
+    case 'crisis': renderCrisis(); break;
+    case 'collection-secret': renderCollectionSecret(); break;
+    case 'collection-free': renderCollectionFree(); break;
+    case 'allocation': renderAllocation(); break;
+    case 'resoconto': renderResoconto(); break;
+  }
+}
+
+// ---- CRISIS PHASE ----
+
+function renderCrisis() {
+  const crisis = state.crisis;
+  const isHost = state.isHost;
+  const main = document.getElementById('game-main');
+
+  main.innerHTML = `
+    ${crisisCardHTML(crisis)}
+    ${state.myCharacter ? characterInfoHTML() : ''}
+    ${state.myObjective ? objectiveHTML() : ''}
+    ${isHost ? `<button class="btn btn-primary" onclick="advanceToCollection()">Avanza alla Raccolta →</button>` : 
+               `<div class="status-box"><div class="status-icon">⏳</div><div class="status-text">In attesa che l'host avanzi…</div></div>`}
+    ${crisisHistoryHTML()}
+    ${logHTML()}
+  `;
+}
+
+function crisisCardHTML(crisis) {
+  if (!crisis) return '';
+  return `
+    <div class="crisis-card">
+      <div class="crisis-fascia fascia-${crisis.fascia}">Fascia ${crisis.fascia}</div>
+      <h2>${esc(crisis.name)}</h2>
+      <div class="crisis-threshold">
+        <div class="label">Soglia richiesta</div>
+        <div class="value">${esc(crisis.thresholdDesc)}</div>
+      </div>
+      <div class="crisis-penalty">⚠ Penalità: <span>${esc(crisis.penalty)}</span></div>
+      ${crisis.effectSuccess ? `<div class="crisis-success-effect">✦ Se superata: ${esc(crisis.effectSuccess)}</div>` : ''}
+    </div>`;
+}
+
+function characterInfoHTML() {
+  const c = state.myCharacter;
+  return `
+    <div class="objective-card">
+      <div class="obj-label">Il tuo personaggio</div>
+      <div class="obj-name">${esc(c.name)} <span style="font-size:13px;color:var(--text-dim)">[${esc(c.category)}]</span></div>
+      <div class="obj-desc">${esc(c.effect)}</div>
+    </div>`;
+}
+
+function objectiveHTML() {
+  const o = state.myObjective;
+  return `
+    <div class="objective-card" style="border-color:var(--border);">
+      <div class="obj-label">Il tuo obiettivo segreto</div>
+      <div class="obj-name">${esc(o.name)}</div>
+      <div class="obj-desc">${esc(o.desc)}</div>
+    </div>`;
+}
+
+function crisisHistoryHTML() {
+  if (!state.crisisHistory?.length) return '';
+  return `
+    <div>
+      <div class="section-title" style="margin-bottom:8px;">Storico crisi</div>
+      <div class="crisis-history">
+        ${state.crisisHistory.map(h=>`
+          <span class="ch-badge ${h.resolved?'ok':'fail'}">${esc(h.name)} ${h.resolved?'✓':'✗'}</span>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+function logHTML() {
+  if (!state.log?.length) return '';
+  return `
+    <div class="log-section">
+      <h3>Registro</h3>
+      <div class="log-entries">
+        ${state.log.map((l,i)=>`<div class="log-entry ${i===0?'new':''}">${esc(l)}</div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ---- COLLECTION SECRET ----
+
+function renderCollectionSecret() {
+  const main = document.getElementById('game-main');
+  const chosen = state.mySecretChoice;
+  const choiceCount = state.secretChoiceCount || 0;
+  const total = state.players.length;
+
+  main.innerHTML = `
+    ${crisisCardHTML(state.crisis)}
+    <div>
+      <div class="section-title" style="margin-bottom:8px;">Carte sul tavolo — scegli una in silenzio</div>
+      <div class="table-cards-grid" id="table-cards-grid">
+        ${state.tableCards.map((card, i) => `
+          <div class="res-card ${card.taken?'taken':''} ${chosen===i?'chosen':''} ${card.taken?'':'res-'+card.type}"
+               onclick="${!card.taken && chosen===undefined ? `makeSecretChoice(${i})` : ''}" >
+            <div class="card-num">${i+1}</div>
+            <div class="card-icon">${card.taken?'—':(RES[card.type]?.icon||'?')}</div>
+            <div class="card-type">${card.taken?'':(card.type||'')}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    ${chosen !== undefined ? 
+      `<div class="status-box highlight"><div class="status-icon">✊</div>
+       <div class="status-text">Hai scelto la carta ${chosen+1}. In attesa degli altri…</div></div>
+       <div class="waiting-players">
+         ${state.players.map(p=>{
+           const hasDone = p.isMe ? chosen!==undefined : false;
+           return `<span class="waiting-chip">${esc(p.name)}</span>`;
+         }).join('')}
+         <span style="font-size:12px;color:var(--text-dim);padding:4px 8px;">${choiceCount}/${total} hanno scelto</span>
+       </div>` :
+      `<div class="status-box"><div class="status-text">Tocca a te scegliere una carta.</div></div>`
+    }
+    ${logHTML()}
+  `;
+}
+
+// ---- COLLECTION FREE ----
+
+function renderCollectionFree() {
+  const main = document.getElementById('game-main');
+  const isMyTurn = state.isMyFreeChoice;
+  const currentSid = state.freeChoiceCurrentPlayer;
+  const currentName = state.players.find(p=>p.id===currentSid)?.name || '?';
+
+  main.innerHTML = `
+    ${crisisCardHTML(state.crisis)}
+    <div class="${isMyTurn?'free-choice-active':'status-box'}">
+      ${isMyTurn ? 
+        `È il tuo turno — scegli una carta oppure passa` :
+        `<div class="status-text">Scelta libera: tocca a <strong>${esc(currentName)}</strong></div>`}
+    </div>
+    <div>
+      <div class="section-title" style="margin-bottom:8px;">Carte rimaste sul tavolo</div>
+      <div class="table-cards-grid">
+        ${state.tableCards.map((card, i) => {
+          const taken = !!card.taken;
+          return `<div class="res-card ${taken?'taken':''} ${!taken?'res-'+card.type:''}"
+                       onclick="${isMyTurn && !taken ? `makeFreeChoice(${i})` : ''}">
+            <div class="card-num">${i+1}</div>
+            <div class="card-icon">${taken?'—':(RES[card.type]?.icon||'?')}</div>
+            <div class="card-type">${taken?'':(card.type||'')}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    ${isMyTurn ? `<button class="btn btn-ghost" onclick="skipFreeChoice()">Passa (non prendere)</button>` : ''}
+    ${handDisplayHTML()}
+    ${logHTML()}
+  `;
+}
+
+function handDisplayHTML() {
+  return `
+    <div class="hand-section">
+      <h3>La tua mano <span>(${state.myHand.length})</span></h3>
+      <div class="hand-grid">
+        ${state.myHand.map(c=>`
+          <div class="hand-card locked ${RES[c.type]?.cls||''}">
+            <div class="card-icon">${RES[c.type]?.icon||'?'}</div>
+            <div class="card-type">${c.type}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ---- ALLOCATION ----
+
+function renderAllocation() {
+  const main = document.getElementById('game-main');
+  const fistDown = state.myFistDown;
+  const contribIds = new Set(state.myContributionIds || []);
+
+  main.innerHTML = `
+    ${crisisCardHTML(state.crisis)}
+    <div class="contrib-area ${contribIds.size>0?'has-cards':''}">
+      <div class="contrib-header">
+        <h3>Contribuzione alla città</h3>
+        <div class="contrib-count">${contribIds.size} carte</div>
+      </div>
+      <div class="contrib-grid">
+        ${contribIds.size === 0 ? 
+          `<div class="contrib-hint" style="grid-column:span 4">Tocca le carte della tua mano per contribuirle</div>` :
+          state.myHand.filter(c=>contribIds.has(c.id)).map(c=>`
+            <div class="hand-card contributing ${RES[c.type]?.cls||''}" onclick="${!fistDown?`toggleContribution(${c.id})`:''}" >
+              <div class="card-icon">${RES[c.type]?.icon||'?'}</div>
+              <div class="card-type">${c.type}</div>
+            </div>`).join('')
+        }
+      </div>
+    </div>
+    <div class="hand-section">
+      <h3>La tua mano <span>(${state.myHand.length - contribIds.size} rimaste)</span></h3>
+      <div class="hand-grid">
+        ${state.myHand.filter(c=>!contribIds.has(c.id)).map(c=>`
+          <div class="hand-card ${fistDown?'locked':''} ${RES[c.type]?.cls||''}" onclick="${!fistDown?`toggleContribution(${c.id})`:''}" >
+            <div class="card-icon">${RES[c.type]?.icon||'?'}</div>
+            <div class="card-type">${c.type}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <button class="btn btn-fist ${fistDown?'confirmed':''}" onclick="fistDown()" ${fistDown?'disabled':''}>
+      ${fistDown ? '✊ Deciso — in attesa degli altri' : '✊ Pugno sul tavolo — ho deciso'}
+    </button>
+    <div class="waiting-players">
+      ${state.players.map(p=>`<span class="waiting-chip ${p.fistDown?'done':''}">
+        ${esc(p.name)} ${p.fistDown?'✊':''}
+      </span>`).join('')}
+    </div>
+    ${logHTML()}
+  `;
+}
+
+// ---- RESOCONTO ----
+
+let timerInterval = null;
+
+function renderResoconto() {
+  const main = document.getElementById('game-main');
+  const resolved = state.lastCrisisResolved;
+  const isHost = state.isHost;
+  const contribs = state.allContributions || {};
+
+  main.innerHTML = `
+    ${resolved !== null && resolved !== undefined ? `
+      <div class="result-banner ${resolved?'success':'failure'}">
+        <h2>${resolved ? '✓ Crisi Superata' : '✗ Crisi Fallita'}</h2>
+        <p>${state.crisis?.name || ''}</p>
+      </div>` : ''}
+    
+    <div class="timer-display">
+      <div class="timer-num" id="resoconto-timer">--</div>
+      <div class="timer-label">Resoconto — dì quello che vuoi</div>
+    </div>
+
+    <div>
+      <div class="section-title" style="margin-bottom:8px;">Contribuzioni rivelate</div>
+      <div class="contrib-reveal">
+        ${state.players.map(p => {
+          const cards = p.contributions || [];
+          return `<div class="contrib-reveal-row">
+            <div class="rname">${esc(p.name)}${p.isMe?' (tu)':''}</div>
+            <div class="rcards">
+              ${cards.length === 0 ? 
+                `<span style="font-size:13px;color:var(--text-dim)">nessuna</span>` :
+                cards.map(c=>miniCard(c.type)).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    ${state.myObjective ? objectiveHTML() : ''}
+    ${crisisHistoryHTML()}
+    ${isHost ? `<button class="btn btn-ghost" onclick="endResoconto()">Salta il timer (host)</button>` : ''}
+    ${logHTML()}
+  `;
+
+  startTimer();
+}
+
+function startTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval=null; }
+  timerInterval = setInterval(() => {
+    const el = document.getElementById('resoconto-timer');
+    if (!el || !state?.resocontoEnd) return;
+    const sec = Math.max(0, Math.ceil((state.resocontoEnd - Date.now())/1000));
+    el.textContent = sec;
+    el.classList.toggle('ending', sec <= 10);
+    if (sec === 0) { clearInterval(timerInterval); timerInterval=null; }
+  }, 200);
+}
+
+// ---- SCORING ----
+
+function renderScoring() {
+  const main = document.getElementById('scoring-main');
+  const scores = state.scores || {};
+  const sorted = state.players.slice().sort((a,b) => {
+    const sa = scores[a.id]?.total||0;
+    const sb = scores[b.id]?.total||0;
+    return sb - sa;
+  });
+
+  main.innerHTML = `
+    ${state.winner ? `
+      <div class="winner-banner">
+        <h2>🏆 ${esc(state.winner)}</h2>
+        <p>Ha vinto la fiducia — o il tradimento — di Luminèa.</p>
+      </div>` : ''}
+    
+    ${sorted.map((p, i) => {
+      const s = scores[p.id];
+      if (!s) return '';
+      return `
+        <div class="score-card">
+          <div class="score-header">
+            <div class="rank">#${i+1}</div>
+            <div class="sname">${esc(s.name)}${p.isMe?' <span style="font-size:12px;color:var(--text-dim)">(tu)</span>':''}</div>
+            <div class="stotal">${s.total} pt</div>
+          </div>
+          <div class="score-breakdown">
+            <div class="score-row"><span>Reputazione (${s.reputation} × 2)</span><span class="sval">${s.repPoints}</span></div>
+            <div class="score-row"><span>Risorse convertite (tetto: ${s.capLimit})</span><span class="sval">${s.converted}</span></div>
+            <div class="score-row"><span>Obiettivo: ${esc(s.objective||'?')}</span><span class="sval">+${s.objBonus}</span></div>
+            <div class="score-row" style="border-top:1px solid var(--border);padding-top:6px;margin-top:4px;color:var(--text)">
+              <span>Personaggio: ${esc(p.character?.name||'?')}</span><span></span>
+            </div>
+          </div>
+        </div>`;
+    }).join('')}
+
+    ${crisisHistoryHTML()}
+    ${logHTML()}
+  `;
+}
+
+// ---- HELPERS ----
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Enter key support
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('input-code').addEventListener('keydown', e => {
+    if (e.key==='Enter') joinRoom();
+  });
+  document.getElementById('input-name').addEventListener('keydown', e => {
+    if (e.key==='Enter') {
+      const code = document.getElementById('input-code').value.trim();
+      if (code.length===4) joinRoom(); else createRoom();
+    }
+  });
+});
+</script>
+</body>
+</html>
